@@ -1,0 +1,5 @@
+﻿cl : Command line warning D9025: overriding '/D_DEBUG' with '/U_DEBUG'
+  JGraphics.cpp
+  UITools.cpp
+  Generating Code...
+  JGraphics.vcxproj -> C:\Users\Jerome Peng\Source\Repos\JGraphics\Debug\JGraphics.exe
