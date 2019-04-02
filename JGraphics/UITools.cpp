@@ -11,7 +11,7 @@ UITools::~UITools()
 {
 }
 
-CString UITools::OpenFileDialog()
+char* UITools::OpenFileDialog()
 {
 	BOOL isOpen = TRUE;
 	CString defaultDir = L"C:\\";
@@ -30,11 +30,20 @@ CString UITools::OpenFileDialog()
 		{
 			filePath = openFileDlg.GetPathName();
 		}
-		return filePath;
+		int i, length;
+		char* strResult;
+		length = filePath.GetLength();
+		strResult = new char[length];
+		for (i = 0; i < length; i++)
+		{
+			*(strResult + i) = filePath.GetAt(i);
+		}
+		*(strResult + length) = NULL;
+		return strResult;
 	}
 	catch (CString &e)
 	{
-		return e;
+		return (LPSTR)(LPCSTR)e.GetBuffer();
 	}
 }
 

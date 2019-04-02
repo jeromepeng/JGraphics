@@ -4,7 +4,7 @@ class UITools
 public:
 	UITools();
 	~UITools();
-	static CString OpenFileDialog();
+	static char* OpenFileDialog();
 	static void DebugMessageBox(HWND hWnd, LPCWSTR info);
 };
 

@@ -6,8 +6,40 @@
 #include <iostream>
 #include <cstring>
 #include "UITools.h"
+#include <GL/GL.h>
+#include <GL/glut.h>
+
+#pragma comment(lib, "opengl32.lib")
 
 #define MAX_LOADSTRING 100
+
+void InitPixelFormat(HDC hDC, HGLRC* hRC)
+{
+	static    PIXELFORMATDESCRIPTOR pfd =
+	{
+		sizeof(PIXELFORMATDESCRIPTOR),    //Size of format
+		1,                                //Version
+		PFD_DRAW_TO_WINDOW |              //Support window
+		PFD_SUPPORT_OPENGL |              //Support OpenGL
+		PFD_DOUBLEBUFFER,                 //Support double buffer
+		PFD_TYPE_RGBA,                    //RGBA format
+		24,                               //Color depth
+		0, 0, 0, 0, 0, 0, 0, 0,           //Ignore RGBA
+		0,                                //No extra buffer
+		0, 0, 0, 0,                       //Ignore focus position
+		32,                               //32bit z buffer
+		0,                                //No mask buffer
+		0,                                //No assist buffer
+		PFD_MAIN_PLANE,                   //Main draw plane
+		0,                                //Reserved
+		0, 0, 0                           //Ignore mask
+	};
+
+
+	int nPixelFormat = ChoosePixelFormat(hDC, &pfd);
+	SetPixelFormat(hDC, nPixelFormat, &pfd);
+	*hRC = wglCreateContext(hDC);
+}
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -21,6 +53,12 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 HDC m_hDC;
+HGLRC m_hRC;
+
+static GLint m_imageWidth;
+static GLint m_imageHeight;
+static GLint m_pixelLength;
+static GLubyte* m_pixelData = NULL;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -110,6 +148,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
       return FALSE;
    }
    m_hDC = GetDC(hWnd);
+   InitPixelFormat(m_hDC, &m_hRC);
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
@@ -143,7 +182,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DestroyWindow(hWnd);
                 break;
 			case ID_OPEN_BMPFILE:
-				UITools::DebugMessageBox(hWnd, UITools::OpenFileDialog());
+				FILE* pfile;
+				fopen_s(&pfile, UITools::OpenFileDialog(), "rb");
+				if (pfile != 0)
+				{
+					fseek(pfile, 0x0012, SEEK_SET);
+					fread(&m_imageWidth, sizeof(m_imageWidth), 1, pfile);
+					fread(&m_imageHeight, sizeof(m_imageHeight), 1, pfile);
+					m_pixelLength = m_imageWidth * 3;
+					while (m_pixelLength % 4 != 0)
+					{
+						m_pixelLength++;
+					}
+					m_pixelLength *= m_imageHeight;
+					m_pixelData = (GLubyte*)malloc(m_pixelLength);
+					if (m_pixelData == 0) exit(0);
+					fseek(pfile, 54, SEEK_SET);
+					fread(m_pixelData, m_pixelLength, 1, pfile);
+					fclose(pfile);
+				}
 				break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
@@ -154,12 +211,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
+			
             // TODO: Add any drawing code that uses hdc here...
+			if (m_pixelData != NULL) 
+			{
+				wglMakeCurrent(m_hDC, m_hRC);
+				glDrawPixels(m_imageWidth, m_imageHeight, GL_BGR_EXT, GL_UNSIGNED_BYTE, m_pixelData);
+				//---------------------------------
+				glFlush();
+				glutSwapBuffers();
+				SwapBuffers(m_hDC);
+				wglMakeCurrent(NULL, NULL);
+			}
             EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
+		wglDeleteContext(m_hRC);
+		ReleaseDC(hWnd, m_hDC);
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -186,4 +256,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return (INT_PTR)FALSE;
 }
+
+
 
